@@ -107,6 +107,12 @@ select {
   color: #4e4137;
 }
 
+.action-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .composer textarea {
   width: 100%;
   min-height: 18rem;
@@ -153,9 +159,36 @@ select {
   cursor: pointer;
 }
 
+.secondary-button {
+  border: 1px solid rgba(140, 77, 34, 0.24);
+  border-radius: 999px;
+  padding: 0.8rem 1.2rem;
+  background: rgba(255, 248, 239, 0.92);
+  color: #6b3c1a;
+  font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary-button:disabled,
 .run-button:disabled {
   opacity: 0.6;
   cursor: progress;
+}
+
+.import-status {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: rgba(255, 248, 239, 0.88);
+  color: #4e4137;
+}
+
+.import-status code {
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(140, 77, 34, 0.1);
+  font-size: 0.8rem;
 }
 
 .schema-list {

@@ -1,11 +1,12 @@
 import { DuckDBConnection, DuckDBInstance } from "@duckdb/node-api";
-import type { QueryResult, SchemaColumn } from "../../shared/data-contract";
+import type { CsvImportResult, QueryResult, SchemaColumn } from "../../shared/data-contract";
 
 export interface DuckDbServiceOptions {
   databasePath?: string;
 }
 
 export class DuckDbService {
+  static readonly importedTableName = "current_csv";
   private readonly databasePath: string;
   private instancePromise: Promise<DuckDBInstance> | null = null;
   private connectionPromise: Promise<DuckDBConnection> | null = null;
@@ -50,6 +51,37 @@ export class DuckDbService {
     `);
 
     return reader.getRowObjectsJson() as unknown as SchemaColumn[];
+  }
+
+  async importCsv(filePath: string): Promise<CsvImportResult> {
+    const trimmedPath = filePath.trim();
+
+    if (!trimmedPath) {
+      throw new Error("Choose a CSV file before importing.");
+    }
+
+    const connection = await this.getConnection();
+    const escapedPath = trimmedPath.replace(/'/g, "''");
+    const tableName = DuckDbService.importedTableName;
+
+    await connection.run(`
+      CREATE OR REPLACE TABLE ${tableName} AS
+      SELECT *
+      FROM read_csv_auto('${escapedPath}', HEADER = true)
+    `);
+
+    const reader = await connection.runAndReadAll(`
+      SELECT COUNT(*) AS rowCount
+      FROM ${tableName}
+    `);
+    const rows = reader.getRowObjectsJson() as Array<{ rowCount: string | number }>;
+    const rowCount = Number(rows[0]?.rowCount ?? 0);
+
+    return {
+      filePath: trimmedPath,
+      tableName,
+      rowCount
+    };
   }
 
   private async getInstance(): Promise<DuckDBInstance> {

@@ -15,8 +15,15 @@ export interface SchemaColumn {
   dataType: string;
 }
 
+export interface CsvImportResult {
+  filePath: string;
+  tableName: string;
+  rowCount: number;
+}
+
 export interface DesktopApi {
   getAppInfo: () => AppInfo;
   getSchema: () => Promise<SchemaColumn[]>;
   querySql: (sql: string) => Promise<QueryResult>;
+  chooseCsvFile: () => Promise<CsvImportResult | null>;
 }

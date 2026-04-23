@@ -1,3 +1,6 @@
+import { mkdtemp, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { DuckDbService } from "./duckdb-service";
 
@@ -47,5 +50,36 @@ describe("DuckDbService", () => {
 
   it("surfaces invalid SQL errors", async () => {
     await expect(service.executeQuery("SELECT * FROM missing_table")).rejects.toThrow();
+  });
+
+  it("imports a CSV file into the active query table", async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "thirdoutcome-"));
+    const filePath = path.join(tempDir, "sales.csv");
+
+    await writeFile(
+      filePath,
+      ["city,revenue,orders", "London,123.45,10", "Paris,98.76,8"].join("\n"),
+      "utf8"
+    );
+
+    const importResult = await service.importCsv(filePath);
+
+    expect(importResult).toEqual({
+      filePath,
+      tableName: "current_csv",
+      rowCount: 2
+    });
+
+    const queryResult = await service.executeQuery(`
+      SELECT city, revenue
+      FROM current_csv
+      ORDER BY revenue DESC
+    `);
+
+    expect(queryResult.columns).toEqual(["city", "revenue"]);
+    expect(queryResult.rows[0]).toEqual({
+      city: "London",
+      revenue: 123.45
+    });
   });
 });

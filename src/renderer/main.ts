@@ -1,6 +1,6 @@
 import "./styles.css";
 import { createDesktopClient } from "./data-client";
-import type { QueryResult, SchemaColumn } from "../shared/data-contract";
+import type { CsvImportResult, QueryResult, SchemaColumn } from "../shared/data-contract";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -10,7 +10,7 @@ if (!app) {
 
 const desktopClient = createDesktopClient();
 const appInfo = desktopClient.getAppInfo();
-const defaultSql = `SELECT
+const sampleSql = `SELECT
   rep,
   region,
   ROUND(SUM(revenue), 2) AS total_revenue,
@@ -18,6 +18,9 @@ const defaultSql = `SELECT
 FROM sample_sales
 GROUP BY 1, 2
 ORDER BY total_revenue DESC;`;
+const importedCsvSql = `SELECT *
+FROM current_csv
+LIMIT 25;`;
 
 app.innerHTML = `
   <main class="shell">
@@ -33,15 +36,21 @@ app.innerHTML = `
       <article class="panel composer">
         <div class="panel-header">
           <div>
-            <p class="panel-kicker">SQL Editor</p>
+            <p class="panel-kicker">CSV + SQL Editor</p>
             <h2>Run a DuckDB query</h2>
           </div>
-          <button class="run-button" id="run-query" type="button">Run Query</button>
+          <div class="action-row">
+            <button class="secondary-button" id="import-csv" type="button">Choose CSV</button>
+            <button class="run-button" id="run-query" type="button">Run Query</button>
+          </div>
+        </div>
+        <div class="import-status" id="import-status">
+          No CSV loaded yet. Query the starter table <code>sample_sales</code> or import a local file.
         </div>
         <label class="label" for="sql-editor">SQL</label>
-        <textarea id="sql-editor" spellcheck="false">${defaultSql}</textarea>
+        <textarea id="sql-editor" spellcheck="false">${sampleSql}</textarea>
         <p class="hint">
-          Starter table: <code>sample_sales</code>. Try <code>SELECT * FROM sample_sales LIMIT 5;</code>
+          Starter table: <code>sample_sales</code>. Imported files are loaded into <code>current_csv</code>.
         </p>
       </article>
 
@@ -84,21 +93,30 @@ app.innerHTML = `
 
 const editor = document.querySelector<HTMLTextAreaElement>("#sql-editor");
 const runButton = document.querySelector<HTMLButtonElement>("#run-query");
+const importButton = document.querySelector<HTMLButtonElement>("#import-csv");
 const schemaList = document.querySelector<HTMLDivElement>("#schema-list");
 const queryMeta = document.querySelector<HTMLDivElement>("#query-meta");
 const queryError = document.querySelector<HTMLParagraphElement>("#query-error");
 const resultsContainer = document.querySelector<HTMLDivElement>("#results-container");
+const importStatus = document.querySelector<HTMLDivElement>("#import-status");
 
-if (!editor || !runButton || !schemaList || !queryMeta || !queryError || !resultsContainer) {
+if (!editor || !runButton || !importButton || !schemaList || !queryMeta || !queryError || !resultsContainer || !importStatus) {
   throw new Error("Expected renderer controls were not found.");
 }
 
 const sqlEditor = editor;
 const runQueryButton = runButton;
+const importCsvButton = importButton;
 const schemaListContainer = schemaList;
 const queryMetaLabel = queryMeta;
 const queryErrorLabel = queryError;
 const queryResultsContainer = resultsContainer;
+const importStatusLabel = importStatus;
+
+function formatImportStatus(result: CsvImportResult): string {
+  const fileName = result.filePath.split(/[\\/]/).pop() ?? result.filePath;
+  return `Loaded <strong>${fileName}</strong> into <code>${result.tableName}</code> with ${result.rowCount} row${result.rowCount === 1 ? "" : "s"}.`;
+}
 
 function renderSchema(columns: SchemaColumn[]): void {
   const grouped = new Map<string, SchemaColumn[]>();
@@ -168,6 +186,7 @@ async function loadSchema(): Promise<void> {
 
 async function runCurrentQuery(): Promise<void> {
   runQueryButton.disabled = true;
+  importCsvButton.disabled = true;
   queryMetaLabel.textContent = "Running...";
   queryErrorLabel.hidden = true;
 
@@ -183,11 +202,45 @@ async function runCurrentQuery(): Promise<void> {
     queryMetaLabel.textContent = "Query failed";
   } finally {
     runQueryButton.disabled = false;
+    importCsvButton.disabled = false;
+  }
+}
+
+async function chooseCsvFile(): Promise<void> {
+  importCsvButton.disabled = true;
+  runQueryButton.disabled = true;
+  queryErrorLabel.hidden = true;
+  importStatusLabel.textContent = "Opening file picker...";
+
+  try {
+    const result = await desktopClient.chooseCsvFile();
+
+    if (!result) {
+      importStatusLabel.innerHTML = `No CSV loaded yet. Query the starter table <code>sample_sales</code> or import a local file.`;
+      return;
+    }
+
+    importStatusLabel.innerHTML = formatImportStatus(result);
+    sqlEditor.value = importedCsvSql;
+    await loadSchema();
+    await runCurrentQuery();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The CSV import failed.";
+    queryErrorLabel.hidden = false;
+    queryErrorLabel.textContent = message;
+    importStatusLabel.textContent = "CSV import failed.";
+  } finally {
+    importCsvButton.disabled = false;
+    runQueryButton.disabled = false;
   }
 }
 
 runQueryButton.addEventListener("click", () => {
   void runCurrentQuery();
+});
+
+importCsvButton.addEventListener("click", () => {
+  void chooseCsvFile();
 });
 
 void loadSchema();
