@@ -1,5 +1,6 @@
 import path from "node:path";
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
+import { executeQuery, getSchema, initializeDuckDb } from "./duckdb";
 
 const isMac = process.platform === "darwin";
 
@@ -30,7 +31,12 @@ function createWindow(): BrowserWindow {
   return window;
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await initializeDuckDb();
+
+  ipcMain.handle("duckdb:query", async (_event, sql: string) => executeQuery(sql));
+  ipcMain.handle("duckdb:schema", async () => getSchema());
+
   createWindow();
 
   app.on("activate", () => {
