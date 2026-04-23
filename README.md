@@ -1,5 +1,7 @@
 # ThirdOutcome
 
+[![CI](https://github.com/AdRiley/ThirdOutcome/actions/workflows/ci.yml/badge.svg)](https://github.com/AdRiley/ThirdOutcome/actions/workflows/ci.yml)
+
 Electron + TypeScript desktop foundation for local CSV analytics with DuckDB and LLM-generated SQL.
 
 ## Scripts
