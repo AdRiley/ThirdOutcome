@@ -1,20 +1,13 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { DesktopApi } from "../src/shared/data-contract";
 
-contextBridge.exposeInMainWorld("desktop", {
+const desktopApi: DesktopApi = {
   getAppInfo: () => ({
     name: "ThirdOutcome",
     runtime: "electron"
   }),
-  getSchema: () => ipcRenderer.invoke("duckdb:schema") as Promise<
-    Array<{
-      tableName: string;
-      columnName: string;
-      dataType: string;
-    }>
-  >,
-  querySql: (sql: string) => ipcRenderer.invoke("duckdb:query", sql) as Promise<{
-    columns: string[];
-    rows: Array<Record<string, unknown>>;
-    rowCount: number;
-  }>
-});
+  getSchema: () => ipcRenderer.invoke("duckdb:schema"),
+  querySql: (sql: string) => ipcRenderer.invoke("duckdb:query", sql)
+};
+
+contextBridge.exposeInMainWorld("desktop", desktopApi);

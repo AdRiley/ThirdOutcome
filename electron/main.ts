@@ -1,8 +1,10 @@
 import path from "node:path";
-import { app, BrowserWindow, ipcMain } from "electron";
-import { executeQuery, getSchema, initializeDuckDb } from "./duckdb";
+import { app, BrowserWindow } from "electron";
+import { DuckDbService } from "../src/backend/duckdb/duckdb-service";
+import { registerDataHandlers } from "./ipc/register-data-handlers";
 
 const isMac = process.platform === "darwin";
+const duckDbService = new DuckDbService();
 
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -32,10 +34,8 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(async () => {
-  await initializeDuckDb();
-
-  ipcMain.handle("duckdb:query", async (_event, sql: string) => executeQuery(sql));
-  ipcMain.handle("duckdb:schema", async () => getSchema());
+  await duckDbService.initialize();
+  registerDataHandlers(duckDbService);
 
   createWindow();
 

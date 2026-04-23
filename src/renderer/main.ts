@@ -1,31 +1,6 @@
 import "./styles.css";
-
-interface AppInfo {
-  name: string;
-  runtime: string;
-}
-
-interface SchemaColumn {
-  tableName: string;
-  columnName: string;
-  dataType: string;
-}
-
-interface QueryResult {
-  columns: string[];
-  rows: Array<Record<string, unknown>>;
-  rowCount: number;
-}
-
-declare global {
-  interface Window {
-    desktop: {
-      getAppInfo: () => AppInfo;
-      getSchema: () => Promise<SchemaColumn[]>;
-      querySql: (sql: string) => Promise<QueryResult>;
-    };
-  }
-}
+import { createDesktopClient } from "./data-client";
+import type { QueryResult, SchemaColumn } from "../shared/data-contract";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -33,7 +8,8 @@ if (!app) {
   throw new Error("Renderer root element was not found.");
 }
 
-const appInfo = window.desktop.getAppInfo();
+const desktopClient = createDesktopClient();
+const appInfo = desktopClient.getAppInfo();
 const defaultSql = `SELECT
   rep,
   region,
@@ -186,7 +162,7 @@ function renderResults(result: QueryResult): void {
 }
 
 async function loadSchema(): Promise<void> {
-  const schema = await window.desktop.getSchema();
+  const schema = await desktopClient.getSchema();
   renderSchema(schema);
 }
 
@@ -196,7 +172,7 @@ async function runCurrentQuery(): Promise<void> {
   queryErrorLabel.hidden = true;
 
   try {
-    const result = await window.desktop.querySql(sqlEditor.value);
+    const result = await desktopClient.querySql(sqlEditor.value);
     renderResults(result);
     queryMetaLabel.textContent = `${result.rowCount} row${result.rowCount === 1 ? "" : "s"} returned`;
   } catch (error) {
